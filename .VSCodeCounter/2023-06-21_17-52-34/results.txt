@@ -1,0 +1,42 @@
+Date : 2023-06-21 17:52:34
+Directory : s:\Repository of Things\Coding\C & C++\RayTracer
+Total : 13 files,  55772 codes, 8672 comments, 4109 blanks, all 68553 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C++      |         12 |     55,770 |      8,672 |      4,109 |     68,551 |
+| Makefile |          1 |          2 |          0 |          0 |          2 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                  | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                     |         13 |     55,772 |      8,672 |      4,109 |     68,553 |
+| . (Files)                                                             |          1 |          2 |          0 |          0 |          2 |
+| src                                                                   |         12 |     55,770 |      8,672 |      4,109 |     68,551 |
+| src\cpp                                                               |          6 |        574 |         34 |        107 |        715 |
+| src\h                                                                 |          6 |     55,196 |      8,638 |      4,002 |     67,836 |
++-----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                              | language | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| s:\Repository of Things\Coding\C & C++\RayTracer\Makefile             | Makefile |          2 |          0 |          0 |          2 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\camera.cpp   | C++      |        204 |         11 |         35 |        250 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\geometry.cpp | C++      |        137 |          3 |         22 |        162 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\main.cpp     | C++      |         25 |         13 |         11 |         49 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\material.cpp | C++      |         10 |          0 |          2 |         12 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\maths.cpp    | C++      |        150 |          0 |         25 |        175 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\cpp\raycast.cpp  | C++      |         48 |          7 |         12 |         67 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\CImg.h         | C++      |     54,989 |      8,636 |      3,933 |     67,558 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\camera.h       | C++      |         62 |          0 |         22 |         84 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\geometry.h     | C++      |         33 |          1 |         14 |         48 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\material.h     | C++      |         16 |          0 |          5 |         21 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\maths.h        | C++      |         81 |          0 |         21 |        102 |
+| s:\Repository of Things\Coding\C & C++\RayTracer\src\h\raycast.h      | C++      |         15 |          1 |          7 |         23 |
+| Total                                                                 |          |     55,772 |      8,672 |      4,109 |     68,553 |
++-----------------------------------------------------------------------+----------+------------+------------+------------+------------+
