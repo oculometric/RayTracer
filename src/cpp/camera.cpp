@@ -4,6 +4,7 @@
 #include <math.h>
 #include <float.h>
 #include <iostream> // TODO remoe
+#include <random>
 #define cimg_use_png
 #define cimg_display 0
 #include "../h/CImg.h"
@@ -21,6 +22,8 @@ void RTCamera::compute_vectors()
     cout << "Horizontal view vector (view x axis): " << view_horizontal_vec.describe() << endl;
     this->view_vertical_vec = this->direction % this->view_horizontal_vec; this->view_vertical_vec.norm_self();
     cout << "Vertical view vector (view y axis): " << view_vertical_vec.describe() << endl;
+
+    this->view_size_inv = RTVector2D(1,1) / this->view_size_pixels;
 }
 
 RTRay RTCamera::ray_for_pixel(RTVector2D coord)
@@ -28,7 +31,7 @@ RTRay RTCamera::ray_for_pixel(RTVector2D coord)
     RTRay ray = RTRay();
     ray.origin = this->origin;
     //cout << "Camera direction: " << this->direction.describe() << endl;
-    RTVector2D uv = (((coord + RTVector2D(0.5, 0.5)) / this->view_size_pixels) * RTVector2D(2,-2)) + RTVector2D(-1,1);
+    RTVector2D uv = (((coord + RTVector2D(0.5, 0.5)) * this->view_size_inv) * RTVector2D(2,-2)) + RTVector2D(-1,1);
     //cout << "Screen coord, 0,0 is centre: " << uv.describe() << endl;
 
     uv = uv * this->camera_aspect_half;
@@ -112,20 +115,27 @@ RTColour RTRenderer::handle_raycast(RTRayCast raycast_result, RTRay ray, int cur
     return col;
 }
 
-void RTRenderer::sample_pixel(int x, int y)
+void RTRenderer::sample_pixel(int x, int y, RTColour * ret)
 {
-    RTRay ray = this->camera->ray_for_pixel(RTVector2D(x,y));
+    float rx = ((float)(rand())/(float)(INT_MAX))-0.5;
+    float ry = ((float)(rand())/(float)(INT_MAX))-0.5;
+
+    RTRay ray = this->camera->ray_for_pixel(RTVector2D(x+rx,y+ry));
     RTRayCast res = ray_cast(ray, this->gbuf);
 
     int buf_pos = x + (y * this->camera->view_size_pixels.u);
-    this->rbuf_write(buf_pos, RENDER_PASS_DEPTH, res.intersected ? res.distance : WORLD_DEPTH_MAX);
-    this->rbuf_write(buf_pos, RENDER_PASS_NORMAL, res.intersected ? res.triangle->norm : RTColour(0));
+    // this->rbuf_write(buf_pos, RENDER_PASS_DEPTH, res.intersected ? res.distance : WORLD_DEPTH_MAX);
+    // this->rbuf_write(buf_pos, RENDER_PASS_NORMAL, res.intersected ? res.triangle->norm : RTColour(0));
     // TODO: occlusion
 
     RTColour col = handle_raycast (res, ray, 0, RTColour(1));
     
-    this->rbuf_write(buf_pos, RENDER_PASS_SHADE, col);
-    this->rbuf_write(buf_pos, RENDER_PASS_DEBUG, res.facing);
+    // this->rbuf_write(buf_pos, RENDER_PASS_SHADE, col);
+    // this->rbuf_write(buf_pos, RENDER_PASS_DEBUG, res.facing);
+    ret[RENDER_PASS_SHADE] = col;
+    ret[RENDER_PASS_DEPTH] = RTColour(res.intersected ? res.distance : WORLD_DEPTH_MAX);
+    ret[RENDER_PASS_NORMAL] = RTColour(res.intersected ? res.triangle->norm : RTColour(0));
+    ret[RENDER_PASS_DEBUG] = RTColour(res.facing);
 }
 
 RTColour RTRenderer::sample_sky(RTRay ray)
@@ -146,7 +156,7 @@ RTColour * RTRenderer::start_render(int s, int worker_threads, RTCamera * _camer
     this->samples_per_pixel = s;
 
     this->rbuf_size = this->camera->view_size_pixels.u * this->camera->view_size_pixels.v;
-    this->rbuf = new RTColour[rbuf_size*6]; // make room for 5 passes: shade, depth, normal, occlude, sample
+    this->rbuf = new RTColour[rbuf_size*RENDER_PASSES]; // make room for 5 passes: shade, depth, normal, occlude, sample
 
     this->diffuse_displacements_precompute.clear();
     float r = M_2_PI/DIFFUSE_RAY_COUNT;
@@ -205,6 +215,11 @@ RTColour RTRenderer::rbuf_read(int x, int y, int buf_id)
     return this->rbuf[buf_pos + (buf_id * this->rbuf_size)];
 }
 
+RTColour RTRenderer::rbuf_read(int buf_pos, int buf_id)
+{
+    return this->rbuf[buf_pos + (buf_id * this->rbuf_size)];
+}
+
 bool RTRenderer::rbuf_export(std::string file_name, int buf_id)
 {
     cout << "Exporting pass " << buf_id << endl;
@@ -235,19 +250,33 @@ void RTRenderer::render_thread_start(int thread_id)
     cout << "thread " << thread_id << " started." << endl;
     while(!this->rendering_now);
     cout << "thread " << thread_id << " kicking off." << endl;
-    int i = 0;
-    int buf_pos = thread_id;
-    while (buf_pos < this->rbuf_size)
+    RTColour sample_result[RENDER_PASSES] = {};
+    for (int s = 0; s < this->samples_per_pixel; s++)
     {
-        this->sample_pixel(buf_pos % (int)(this->camera->view_size_pixels.u), buf_pos / (int)(this->camera->view_size_pixels.u));
-        this->rbuf_write(buf_pos, RENDER_PASS_SAMPLE, RTColour(1));
-        buf_pos += this->workers.size();
-        i++;
-        //cout << thread_id << " thread rendered a pixel." << endl;
-        if (this->rendering_cancel) return;
+        int i = 0;
+        int buf_pos = thread_id;
+        while (buf_pos < this->rbuf_size)
+        {
+            this->sample_pixel(buf_pos % (int)(this->camera->view_size_pixels.u), buf_pos / (int)(this->camera->view_size_pixels.u), sample_result);
+            this->rbuf_write(buf_pos, RENDER_PASS_SAMPLE, RTColour((float)s/255.0));
+            if (s == 0)
+            {
+                this->rbuf_write(buf_pos, RENDER_PASS_DEPTH, sample_result[RENDER_PASS_DEPTH]);
+                this->rbuf_write(buf_pos, RENDER_PASS_NORMAL, sample_result[RENDER_PASS_NORMAL]);
+                this->rbuf_write(buf_pos, RENDER_PASS_DEBUG, sample_result[RENDER_PASS_DEBUG]);
+            }
+            this->rbuf_write(buf_pos, RENDER_PASS_SHADE, 
+                ((this->rbuf_read(buf_pos, RENDER_PASS_SHADE)*(s))+sample_result[RENDER_PASS_SHADE])/(s+1)
+            );
+
+            buf_pos += this->workers.size();
+            i++;
+            //cout << thread_id << " thread rendered a pixel." << endl;
+            if (this->rendering_cancel) return;
+        }
+        // TODO subsampling/anti-aliasing
+        std::cout << "thread " << thread_id << " did a sample; i drew this many pixels: " << i << std::endl;
     }
-    // TODO subsampling/anti-aliasing
-    std::cout << "thread " << thread_id << " done; i drew this many pixels: " << i << std::endl;
     this->workers_done[thread_id] = true;
 }
 

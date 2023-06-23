@@ -38,13 +38,11 @@ struct RTTri
     std::string describe();
 };
 
-struct RTBVHNode
+struct RTBoundBox
 {
-    RTBVHNode * children[8];
-
-    std::vector<RTTri *> triangles;
-
-    RTVector center;
+    RTVector box_min;
+    RTVector box_max;
+    RTVector box_center;
 };
 
 struct RTGeometryBuffer
@@ -52,11 +50,6 @@ struct RTGeometryBuffer
     std::vector<RTTri *> triangles;
 
     std::vector<RTBoundBox *> triangle_bounding_boxes;
-
-    std::vector<RTBVHNode *> bvh_toplevel;
-
-    RTBVHNode * add_toplevel_block(RTVector);
-    void insert_triangle_child(RTTri *, int, RTBVHNode *);
 
     std::vector<RTTri *> triangles_for_ray(RTRay); // fetch triangles which touch relevant BVH segments. we'll implement that later
     void insert_triangle(RTTri *); // insert a triangle into the BVH structure

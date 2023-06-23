@@ -79,140 +79,64 @@ std::string RTTri::describe()
     return s;
 }
 
-bool block_intersection(RTVector block_center, float block_radius, RTRay ray)
+bool box_intersection(RTVector box_min, RTVector box_max, RTVector box_center, RTRay ray)
 {
-    //cout << ray.direction.describe() << endl;
-    //RTVector ray_direction_inv = RTVector(1)/ray.direction;
-    //cout << ray_direction_inv.describe() << endl;
+    // float t = (ray.direction ^ (box_center - ray.origin)) / (ray.direction ^ ray.direction);
+    // if (t < -1) return false;
+    // RTVector p = (ray.direction * t) + ray.origin;
 
-    // float tk1 = ((block_center.x-block_radius) - ray.origin.x)/ray_direction_inv.x;
-    // float tk2 = ((block_center.x+block_radius) - ray.origin.x)/ray_direction_inv.x;
-
-    // float tmin = max(tmin, min(tk1, tk2));
-    // float tmax = min(tmax, max(tk1, tk2));
-
-    // tk1 = ((block_center.y-block_radius) - ray.origin.y)/ray_direction_inv.y;
-    // tk2 = ((block_center.y+block_radius) - ray.origin.y)/ray_direction_inv.y;
-
-    // tmin = max(tmin, min(tk1, tk2));
-    // tmax = min(tmax, max(tk1, tk2));
-
-    // tk1 = ((block_center.z-block_radius) - ray.origin.z)/ray_direction_inv.z;
-    // tk2 = ((block_center.z+block_radius) - ray.origin.z)/ray_direction_inv.z;
-
-    // tmin = max(tmin, min(tk1, tk2));
-    // tmax = min(tmax, max(tk1, tk2));
-
-    float t = (ray.direction ^ (block_center - ray.origin)) / (ray.direction ^ ray.direction);
-    if (t < -1) return false;
-    RTVector p = (ray.direction * t) + ray.origin;
-
-    if (p.x > block_center.x + block_radius) return false;
-    if (p.x < block_center.x - block_radius) return false;
+    // if (p.x > box_max.x) return false;
+    // if (p.x < box_min.x) return false;
     
-    if (p.y > block_center.y + block_radius) return false;
-    if (p.y < block_center.y - block_radius) return false;
+    // if (p.y > box_max.y) return false;
+    // if (p.y < box_min.y) return false;
     
-    if (p.z > block_center.z + block_radius) return false;
-    if (p.z < block_center.z - block_radius) return false;
+    // if (p.z > box_max.z) return false;
+    // if (p.z < box_min.z) return false;
+
+    float ray_inv_x = 1.0 / ray.direction.x;
+    float t0x = (box_min.x - ray.origin.x) * ray_inv_x;
+    float t1x = (box_max.x - ray.origin.x) * ray_inv_x;
+    float tminx = min(t0x, t1x); float tmaxx = max(t0x,t1x);
+    if (tminx > tmaxx) return false;
+
+    float ray_inv_y = 1.0 / ray.direction.y;
+    float t0y = (box_min.y - ray.origin.y) * ray_inv_y;
+    float t1y = (box_max.y - ray.origin.y) * ray_inv_y;
+    float tminy = min(t0y, t1y); float tmaxy = max(t0y,t1y);
+    if (tminy > tmaxy) return false;
+
+    float ray_inv_z = 1.0 / ray.direction.z;
+    float t0z = (box_min.z - ray.origin.z) * ray_inv_z;
+    float t1z = (box_max.z - ray.origin.z) * ray_inv_z;
+    float tminz = min(t0z, t1z); float tmaxz = max(t0z,t1z);
+    if (tminz > tmaxz) return false;
+
+    if (max(tminx, max(tminy, tminz)) > min(tmaxx, min(tmaxy, tmaxz))) return false;
     
     return true;
 }
 
-bool block_intersection(RTVector block_center, float block_radius, RTTri * tri, RTVector vec_c)
-{
-    RTRay ray1 = RTRay(tri->v1, tri->vec_a);
-    RTRay ray2 = RTRay(tri->v1, tri->vec_b);
-    RTRay ray3 = RTRay(tri->v2, vec_c);
-    return block_intersection(block_center, block_radius, ray1) || block_intersection(block_center, block_radius, ray2) || block_intersection(block_center, block_radius, ray3);
-}
-
-int contains_bvh_child(vector<RTBVHNode *> v, RTVector o)
-{
-    int ind = -1;
-    for (RTBVHNode * c : v)
-    {
-        ind++;
-        if (c->center == o) return ind;
-    }
-    return -1;
-}
-
-void bvh_add_child(RTBVHNode * parent, RTBVHNode * child)
-{
-    for (int i = 0; i < 8; i++)
-    {
-        if (parent->children[i] == NULL) 
-        {
-            parent->children[i] = child;
-            return;
-        }
-    }
-    cout << "oh no" << endl;
-    __builtin_unreachable(); // something has gone horribly horribly wrong if this happens
-}
-
-RTBVHNode * RTGeometryBuffer::add_toplevel_block(RTVector origin)
-{
-    int res = contains_bvh_child(this->bvh_toplevel, origin);
-    if (res >= 0) return this->bvh_toplevel[res];
-
-    RTBVHNode * node = new RTBVHNode();
-    node->center = origin;
-    this->bvh_toplevel.push_back(node);
-    return node;
-}
-
 std::vector<RTTri *> RTGeometryBuffer::triangles_for_ray(RTRay ray)
 {
-    //TODO: walk bvh structure
-    vector<RTBVHNode *> nodes_to_check = this->bvh_toplevel;
-    vector<RTBVHNode *> nodes_to_check_next;
     vector<RTTri *> triangles_to_return;
 
-    int level = 0;
-    while (level <= BVH_DIVISION_MAX && !nodes_to_check.empty())
+    for (int i = 0; i < this->triangles.size(); i++)
     {
-        float radius = BVH_DIVISION_TOPLEVEL_RADIUS*powf(0.5, level);
-        for (RTBVHNode * node : nodes_to_check)
-        {
-            if (block_intersection(node->center, radius, ray))
-            {
-                //cout << "ray intersected with block " << node->center.describe() << endl;
-                if (node->triangles.size() == 1 || level == BVH_DIVISION_MAX) /// needs to be changed when we actually make this work
-                {
-                    for (RTTri * t : node->triangles)
-                        triangles_to_return.push_back(t);
-                }
-                else
-                {
-                    for (int i = 0; i < 8; i++)
-                    {
-                        if (node->children[i] == NULL) break;
-                        nodes_to_check_next.push_back(node->children[i]);
-                    }
-                }
-            }
-        }
-        nodes_to_check.clear();
-        nodes_to_check = nodes_to_check_next;
-        nodes_to_check_next.clear();
-        level++;
+        if (box_intersection(this->triangle_bounding_boxes[i]->box_min, this->triangle_bounding_boxes[i]->box_max, this->triangle_bounding_boxes[i]->box_center, ray))
+            triangles_to_return.push_back(this->triangles[i]);
     }
 
     //cout << "triangles given to ray: " << triangles_to_return.size() << endl;
     return triangles_to_return;
 }
 
-float round_out(float f, float div_size)
+void RTGeometryBuffer::insert_triangle(RTTri * tri)
 {
-    return round(f/div_size)*div_size;
-}
-
-float round_out_bvh(float f) { return round_out (f, 2*BVH_DIVISION_TOPLEVEL_RADIUS); }
-
-vector<RTVector> toplevel_blocks_touched(RTTri * tri)
-{
+    //cout << "inserting triangle." << endl;
+    this->triangles.push_back(tri);
+    //cout << "it touched " << toplevel_blocks_t.size() << " top level blocks" << endl;
+    
     RTVector bound_min = RTVector(0);
     RTVector bound_max = RTVector(0);
     // find a bounding box, rounded outwards (from zero) to the nearest block containing the triangle.
@@ -228,106 +152,15 @@ vector<RTVector> toplevel_blocks_touched(RTTri * tri)
     bound_min.z = min(min(tri->v1.z, tri->v2.z), tri->v3.z);
     bound_max.z = max(max(tri->v1.z, tri->v2.z), tri->v3.z);
 
-    // bounds rounded outwards
-    bound_min.x = round_out_bvh(bound_min.x); bound_min.y = round_out_bvh(bound_min.y); bound_min.z = round_out_bvh(bound_min.z);
-    bound_max.x = round_out_bvh(bound_max.x); bound_max.y = round_out_bvh(bound_max.y); bound_max.z = round_out_bvh(bound_max.z);
+    RTVector bound_center = (bound_min + bound_max) / 2;
     
-    RTVector vec_c = tri->v3 - tri->v2;
+    RTBoundBox * box = new RTBoundBox();
+    box->box_max = bound_max;
+    box->box_min = bound_min;
+    box->box_center = bound_center;
 
-    vector<RTVector> intersected_blocks;
-    for (int z = bound_min.z; z <= bound_max.z; z += BVH_DIVISION_TOPLEVEL_RADIUS*2)
-    {
-        for (int y = bound_min.y; y <= bound_max.y; y += BVH_DIVISION_TOPLEVEL_RADIUS*2)
-        {
-            for (int x = bound_min.x; x <= bound_max.x; x += BVH_DIVISION_TOPLEVEL_RADIUS*2)
-            {
-                RTVector current = RTVector(x,y,z);
-                if (block_intersection(current, BVH_DIVISION_TOPLEVEL_RADIUS, tri, vec_c)) intersected_blocks.push_back(current);
-            }
-        }
-    }
-    return intersected_blocks;
-}
-
-vector<RTVector> blocks_touched(RTTri * tri, int level, RTVector parent_block_origin)
-{
-    RTVector vec_c = tri->v3 - tri->v2;
-    // check 8 blocks within the parent
-    float radius = BVH_DIVISION_TOPLEVEL_RADIUS*powf(0.5, level);
-    RTVector bld = parent_block_origin + RTVector(-radius, -radius, -radius);
-    RTVector blu = parent_block_origin + RTVector(-radius, -radius, radius);
-    RTVector brd = parent_block_origin + RTVector(-radius, radius, -radius);
-    RTVector bru = parent_block_origin + RTVector(-radius, radius, radius);
-    RTVector fld = parent_block_origin + RTVector(radius, -radius, -radius);
-    RTVector flu = parent_block_origin + RTVector(radius, -radius, radius);
-    RTVector frd = parent_block_origin + RTVector(radius, radius, -radius);
-    RTVector fru = parent_block_origin + RTVector(radius, radius, radius);
-
-    vector<RTVector> blocks;
-    if (block_intersection(bld, radius, tri, vec_c)) blocks.push_back(bld);
-    if (block_intersection(blu, radius, tri, vec_c)) blocks.push_back(blu);
-    if (block_intersection(brd, radius, tri, vec_c)) blocks.push_back(brd);
-    if (block_intersection(bru, radius, tri, vec_c)) blocks.push_back(bru);
-    if (block_intersection(fld, radius, tri, vec_c)) blocks.push_back(fld);
-    if (block_intersection(flu, radius, tri, vec_c)) blocks.push_back(flu);
-    if (block_intersection(frd, radius, tri, vec_c)) blocks.push_back(frd);
-    if (block_intersection(fru, radius, tri, vec_c)) blocks.push_back(fru);
-
-    return blocks;
-}
-
-void RTGeometryBuffer::insert_triangle_child(RTTri * tri, int level, RTBVHNode * node)
-{
-    //cout << "inserting a triangle into child bvh at " << node->center.describe() << endl;
-    vector<RTVector> child_blocks_touched = blocks_touched(tri, level, node->center);
-    vector<RTBVHNode *> children;
-
-    vector<RTBVHNode *> node_current_children;
-    for (int i = 0; i < 8; i++) if (node->children[i] != NULL) node_current_children.push_back(node->children[i]);
-
-    for (RTVector child_block : child_blocks_touched)
-    {
-        int res = contains_bvh_child(node_current_children, child_block);
-        RTBVHNode * child = NULL;
-        if (res >= 0) child = node_current_children[res];
-        else
-        {
-            child = new RTBVHNode();
-            child->center = child_block;
-            bvh_add_child(node, child);
-        }
-        child->triangles.push_back(tri);
-        children.push_back(child);
-    }
-    
-    for (RTBVHNode * child : children)
-    {
-        if (child->triangles.size() > 1 && level <= BVH_DIVISION_MAX)
-        {
-            for (RTTri * tri_sub : child->triangles)
-            {
-                this->insert_triangle_child(tri_sub, level+1, child);
-            }
-        }
-    }
-}
-
-void RTGeometryBuffer::insert_triangle(RTTri * tri)
-{
-    //cout << "inserting triangle." << endl;
-    this->triangles.push_back(tri);
-    vector<RTVector> toplevel_blocks_t = toplevel_blocks_touched(tri);
-    //cout << "it touched " << toplevel_blocks_t.size() << " top level blocks" << endl;
-    vector<RTBVHNode *> tlbs;
-    for (RTVector tl_block : toplevel_blocks_t)
-    {
-        RTBVHNode * tlb = this->add_toplevel_block(tl_block);
-        tlbs.push_back(tlb);
-        tlb->triangles.push_back(tri);
-    }
-
-    for (RTBVHNode * tlb : tlbs) this->insert_triangle_child(tri, 1, tlb);
-    //cout << "triangle was inserted into " << tlbs.size() << " top level blocks" << endl;
+    this->triangle_bounding_boxes.push_back(box);
+    cout << "triangle " << tri->describe() << " loaded with bounds " << bound_min.describe() << ":" << bound_max.describe() << endl;
 }
 
 vector<string> split_str(string s, char d)
@@ -395,11 +228,7 @@ bool RTGeometryBuffer::load_obj(string path, RTVector offset, RTMaterial * mat)
         this->insert_triangle(t);
     }
     cout << "Loaded " << tris.size() << " tris" << endl;
-    cout << "Here's the loadout: " << endl;
-    for (RTBVHNode * n : this->bvh_toplevel)
-    {
-        cout << n->center.describe() << ":" << n->triangles.size() << endl;
-    }
+    
     return true;
 }
     

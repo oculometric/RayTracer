@@ -5,6 +5,7 @@
 #include "geometry.h"
 #include "raycast.h"
 #include <thread>
+#include <random>
 
 #define RENDER_PASS_SHADE   0
 #define RENDER_PASS_DEPTH   1
@@ -12,6 +13,8 @@
 #define RENDER_PASS_OCCLUDE 3
 #define RENDER_PASS_SAMPLE 4
 #define RENDER_PASS_DEBUG 5
+
+#define RENDER_PASSES 6
 
 #define SAMPLE_DEPTH_MAX 4
 #define DIFFUSE_RAY_COUNT 4
@@ -27,6 +30,7 @@ struct RTCamera
     float horizontal_view_size_half;
     float pixel_aspect_ratio;
     RTVector2D camera_aspect_half;
+    RTVector2D view_size_inv;
 
     void compute_vectors();
 
@@ -65,7 +69,7 @@ struct RTRenderer
     RTColour diffuse_sample(RTRay, int, RTColour, float);
     RTColour handle_raycast(RTRayCast, RTRay, int, RTColour);
 
-    void sample_pixel(int, int);
+    void sample_pixel(int, int, RTColour *);
     RTColour sample_sky(RTRay);
 
     RTColour * start_render(int, int, RTCamera *, RTSky *, RTGeometryBuffer *);
@@ -75,6 +79,7 @@ struct RTRenderer
     void rbuf_write(int, int, float);
     void rbuf_write(int, int, RTColour);
     RTColour rbuf_read(int, int, int);
+    RTColour rbuf_read(int, int);
 
     bool rbuf_export(std::string, int);
 
