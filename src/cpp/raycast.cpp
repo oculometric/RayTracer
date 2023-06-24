@@ -11,7 +11,7 @@ RTRayCast ray_cast(RTRay ray, RTTri * tri)
     float backfacing = dot > 0 ? 1 : -1;
 
     float dist = ((tri->v1 - ray.origin) ^ tri->norm) / dot; // distance along ray
-    if (dist <= 0) return RTRayCast();
+    if (dist < RAYCAST_DISTANCE_MIN) return RTRayCast();
     //cout << "triangle is in front of us " << to_string(dist) << endl;
 
     RTVector v1 = (tri->v1 - ray.origin); // vector from ray origin to each vertex

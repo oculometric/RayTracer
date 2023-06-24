@@ -124,14 +124,10 @@ void RTRenderer::sample_pixel(int x, int y, RTColour * ret)
     RTRayCast res = ray_cast(ray, this->gbuf);
 
     int buf_pos = x + (y * this->camera->view_size_pixels.u);
-    // this->rbuf_write(buf_pos, RENDER_PASS_DEPTH, res.intersected ? res.distance : WORLD_DEPTH_MAX);
-    // this->rbuf_write(buf_pos, RENDER_PASS_NORMAL, res.intersected ? res.triangle->norm : RTColour(0));
     // TODO: occlusion
 
     RTColour col = handle_raycast (res, ray, 0, RTColour(1));
     
-    // this->rbuf_write(buf_pos, RENDER_PASS_SHADE, col);
-    // this->rbuf_write(buf_pos, RENDER_PASS_DEBUG, res.facing);
     ret[RENDER_PASS_SHADE] = col;
     ret[RENDER_PASS_DEPTH] = RTColour(res.intersected ? res.distance : WORLD_DEPTH_MAX);
     ret[RENDER_PASS_NORMAL] = RTColour(res.intersected ? res.triangle->norm : RTColour(0));
@@ -169,10 +165,12 @@ RTColour * RTRenderer::start_render(int s, int worker_threads, RTCamera * _camer
 
     this->workers.clear();
     this->workers_done.clear();
+    this->samples_completed.clear();
     for (int i = 0; i < worker_threads; i++)
     {
         this->workers_done.push_back(false);
         this->workers.push_back(std::thread(&RTRenderer::render_thread_start, this, i));
+        this->samples_completed.push_back(0);
     }
     this->rendering_now = true;
 
@@ -181,8 +179,15 @@ RTColour * RTRenderer::start_render(int s, int worker_threads, RTCamera * _camer
 
 void RTRenderer::wait_for_render()
 {
+    int last_checked_sample = 0;
     while (!this->rendering_done)
     {
+        if (this->samples_completed[0] > last_checked_sample)
+        {
+            last_checked_sample = this->samples_completed[0];
+            cout << "Thread 0 finished sample " << last_checked_sample << endl;
+            this->rbuf_export("render.png", RENDER_PASS_SHADE);
+        }
         bool b = true;
         for (bool b2 : this->workers_done) b &= b2;
         if (b) this->rendering_done = true;
@@ -257,6 +262,7 @@ void RTRenderer::render_thread_start(int thread_id)
         int buf_pos = thread_id;
         while (buf_pos < this->rbuf_size)
         {
+            if (this->rendering_cancel) return;
             this->sample_pixel(buf_pos % (int)(this->camera->view_size_pixels.u), buf_pos / (int)(this->camera->view_size_pixels.u), sample_result);
             this->rbuf_write(buf_pos, RENDER_PASS_SAMPLE, RTColour((float)s/255.0));
             if (s == 0)
@@ -272,10 +278,9 @@ void RTRenderer::render_thread_start(int thread_id)
             buf_pos += this->workers.size();
             i++;
             //cout << thread_id << " thread rendered a pixel." << endl;
-            if (this->rendering_cancel) return;
         }
-        // TODO subsampling/anti-aliasing
-        std::cout << "thread " << thread_id << " did a sample; i drew this many pixels: " << i << std::endl;
+        this->samples_completed[thread_id] = s;
+        //std::cout << "thread " << thread_id << " did a sample; i drew this many pixels: " << i << std::endl;
     }
     this->workers_done[thread_id] = true;
 }

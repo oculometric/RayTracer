@@ -62,6 +62,7 @@ struct RTRenderer
 
     std::vector<std::thread> workers;
     std::vector<bool> workers_done;
+    std::vector<int> samples_completed;
 
     std::vector<RTVector2D> diffuse_displacements_precompute;
 

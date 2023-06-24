@@ -70,6 +70,9 @@
         "unordered_map": "cpp",
         "memory_resource": "cpp",
         "string_view": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "random": "cpp",
+        "functional": "cpp",
+        "numeric": "cpp"
     }
 }
