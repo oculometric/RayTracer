@@ -20,6 +20,9 @@
 #define DIFFUSE_RAY_COUNT 4
 #define WORLD_DEPTH_MAX 100
 
+#define CHECKER_SIZE 4
+#define CHECKER_ENABLE
+
 struct RTCamera
 {
     RTPoint origin;

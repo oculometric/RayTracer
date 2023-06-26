@@ -201,7 +201,7 @@ bool RTGeometryBuffer::load_obj(string path, RTVector offset, RTMaterial * mat)
         vector<string> parts = split_str(line, ' ');
         if (parts[0] == "v")
         {
-            RTPoint imported_vert = RTPoint(stof(parts[1]), stof(parts[2]), stof(parts[3]));
+            RTPoint imported_vert = RTPoint(-stof(parts[1]), stof(parts[2]), stof(parts[3]));
             verts.push_back(imported_vert + offset);
             //cout << "imported a vertex at " << imported_vert.describe() << endl;
         }

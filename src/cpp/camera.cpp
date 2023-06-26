@@ -89,6 +89,21 @@ RTColour RTRenderer::diffuse_sample(RTRay reflected_ray, int depth, RTColour inc
     return col;
 }
 
+float checker(RTPoint p)
+{
+    #ifndef CHECKER_ENABLE
+    return 1;
+    #else
+
+    RTPoint h = p + RTVector(CHECKER_SIZE/2);
+    RTPoint oddness = RTPoint((int)trunc(h.x*CHECKER_SIZE)%2, (int)trunc(h.y*CHECKER_SIZE)%2, (int)trunc(h.z*CHECKER_SIZE)%2);
+
+    if (oddness.y == oddness.z) return oddness.x;
+    else return 1-oddness.x;
+
+    #endif
+}
+
 RTColour RTRenderer::handle_raycast(RTRayCast raycast_result, RTRay ray, int current_depth, RTColour incoming_col)
 {
     RTColour col;
@@ -96,7 +111,7 @@ RTColour RTRenderer::handle_raycast(RTRayCast raycast_result, RTRay ray, int cur
     {
         //cout << "we hit a triangle!" << endl;
         //if (raycast_result.facing < 0) cout << "the back of it, in fact" << endl;
-        col = incoming_col * raycast_result.triangle->material->colour;
+        col = incoming_col * raycast_result.triangle->material->colour * checker ((raycast_result.distance*ray.direction) + ray.origin);
         if (current_depth >= SAMPLE_DEPTH_MAX) return RTColour(0);
         RTRay reflected_ray = get_reflected(ray, raycast_result.distance, raycast_result.triangle->norm*raycast_result.facing);
         if (raycast_result.triangle->material->roughness == 0)
